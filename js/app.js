@@ -11,7 +11,7 @@
 
   let S, car;
   const state = { travel: { FL: 0, FR: 0, RL: 0, RR: 0 }, steer: 0, spin: 0, explode: 0 };
-  const ui = { hiddenTypes: new Set(), sysFilter: null, axFilter: null, isolate: null, wheels: true, body: true, outline: true, focus: true, colorMode: 'accent', spinOn: false, autoOn: false };
+  const ui = { hiddenTypes: new Set(), sysFilter: null, axFilter: null, isolate: null, wheels: true, body: true, outline: true, focus: true, colorMode: 'accent', uiScale: 'auto', spinOn: false, autoOn: false };
   let dirty = true, selected = new Set(), primary = null, hover = null, pickables = [], byType = {};
   let tween = null, camAnim = null, autoT = 0, lastRead = 0, symptomShown = null;
 
@@ -417,6 +417,8 @@
     $$('[data-cm]').forEach(b => b.onclick = () => setColorMode(b.dataset.cm));
     $('#c-color').onchange = e => setColorMode(e.target.checked ? lastColored : 'real');
     $('#cmq').onclick = () => setColorMode(ui.colorMode === 'real' ? lastColored : 'real');
+    const ub = $('#uiscale');
+    UI_STEPS.forEach(([v, n]) => { const b = document.createElement('button'); b.className = 'btn'; b.dataset.v = v; b.textContent = n; b.onclick = () => setUiScale(v); ub.appendChild(b); });
     renderLegend();
     $$('#tabs button').forEach(b => b.onclick = () => {
       $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
@@ -511,15 +513,36 @@
     S.ground.visible = gOn && S.camera.position.y > 0.02;
     S.renderer.render(S.scene, S.camera);
   }
+  /* Розмір інтерфейсу: на великих екранах (4K/5K, зменшений зум браузера) панелі
+     збільшуються автоматично; у «Вигляд» можна вибрати вручну. Усі розміри в CSS — у rem. */
+  const UI_STEPS = [['auto', 'Авто'], [1, '100%'], [1.25, '125%'], [1.5, '150%'], [2, '200%'], [2.5, '250%']];
+  function uiScaleAuto() { return Math.max(1, Math.min(3, Math.min(window.innerWidth / 2600, window.innerHeight / 1300))); }
+  function uiScaleValue() { return ui.uiScale === 'auto' ? uiScaleAuto() : ui.uiScale; }
+  function applyUiScale() {
+    const s = uiScaleValue();
+    document.documentElement.style.fontSize = (16 * s).toFixed(2) + 'px';
+    const hint = $('#uiscale-hint');
+    if (hint) hint.textContent = ui.uiScale === 'auto' ? 'Авто: зараз ' + Math.round(s * 100) + '% (збільшується на великих екранах).' : 'Вибрано вручну: ' + Math.round(s * 100) + '%.';
+    $$('#uiscale .btn').forEach(b => b.classList.toggle('on', String(b.dataset.v) === String(ui.uiScale)));
+  }
+  function setUiScale(v) {
+    ui.uiScale = v === 'auto' ? 'auto' : parseFloat(v);
+    try { localStorage.setItem('rav4.uiScale', String(ui.uiScale)); } catch (e) { /* без збереження */ }
+    resize();
+  }
   function resize() {
+    applyUiScale();
     const w = window.innerWidth, h = window.innerHeight;
     S.renderer.setSize(w, h, false);
     S.camera.aspect = w / h;
     S.camera.fov = w / h >= 1.1 ? 36 : Math.min(74, 2 * Math.atan(Math.tan(18 * Math.PI / 180) * 1.1 / (w / h)) * 180 / Math.PI);
     // зсув зображення так, щоб модель була в центрі вільної області між панелями
-    if (w > 860) {
-      const lw = $('#left').offsetWidth + 12, rw = $('#right').offsetWidth + 12;
+    if (w > 860 && !$('#left').classList.contains('hide')) {
+      const lw = $('#left').getBoundingClientRect().right, rw = w - $('#right').getBoundingClientRect().left;
       S.camera.setViewOffset(w, h, -(lw - rw) / 2, 0, w, h);
+    } else if (w > 860) {
+      const rw = w - $('#right').getBoundingClientRect().left;
+      S.camera.setViewOffset(w, h, rw / 2, 0, w, h);
     } else S.camera.clearViewOffset();
     S.camera.updateProjectionMatrix();
   }
@@ -534,6 +557,7 @@
     Object.values(byType).forEach(l => l.sort((a, b) => SIDE_ORDER[a.frame] - SIDE_ORDER[b.frame]));
     buildTree(); buildViews(); buildHelp(); bindMotion(); bindView();
     syncSliders(); applyVisibility(); showEmpty();
+    try { const sv = localStorage.getItem('rav4.uiScale'); if (sv && sv !== 'auto' && isFinite(parseFloat(sv))) ui.uiScale = parseFloat(sv); } catch (e) { /* авто */ }
     S.controls.addEventListener('start', () => { camAnim = null; });
     window.addEventListener('resize', resize);
     resize();
@@ -565,7 +589,12 @@
     if (HASH.has('cam')) { const v = HASH.get('cam').split(',').map(Number); S.camera.position.set(v[0], v[1], v[2]); S.controls.target.set(v[3], v[4], v[5]); S.controls.update(); }
     if (HASH.get('fly') && byType[HASH.get('fly')]) { car.root.updateMatrixWorld(true); flyToParts([byType[HASH.get('fly')][0]]); camAnim.t = 1; }
     if (HASH.get('auto') === '1') { ui.autoOn = true; $('#c-auto').checked = true; }
+    if (HASH.get('ui')) { ui.uiScale = HASH.get('ui') === 'auto' ? 'auto' : parseFloat(HASH.get('ui')); resize(); }
     if (HASH.get('spinon') === '1') { ui.spinOn = true; $('#c-spin').checked = true; }
+    if (HASH.get('uitest')) {
+      const L = $('#left').getBoundingClientRect(), R = $('#right').getBoundingClientRect();
+      document.title = 'uitest inner=' + innerWidth + 'x' + innerHeight + ' font=' + getComputedStyle(document.documentElement).fontSize + ' left=' + Math.round(L.width) + ' right=' + Math.round(R.width) + ' leftX=' + Math.round(L.left) + ' scale=' + uiScaleValue().toFixed(2);
+    }
     if (HASH.get('selftest')) {
       let n = 0; const errs = [];
       car.parts.forEach(p => { try { select(p); if (!info.textContent.length) errs.push(p.key + ':empty'); n++; } catch (e) { errs.push(p.key + ':' + e.message); } });
