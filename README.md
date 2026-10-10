@@ -1,6 +1,8 @@
 # Toyota RAV4 (XA30, 2011) — ходова частина · інтерактивна 3D-модель
 
-Відкрийте **`index.html`** у браузері (Chrome / Safari / Edge / Firefox) — подвійним кліком.
+**Онлайн:** https://sernyak.github.io/rav4-xa30-suspension-3d/
+
+Або локально: відкрийте **`index.html`** у браузері (Chrome / Safari / Edge / Firefox) — подвійним кліком.
 Інтернет не потрібен: Three.js лежить у `lib/`.
 
 ## Що всередині
@@ -47,3 +49,6 @@
 `js/geo.js`, `js/mats.js` — геометрія й матеріали · `js/front*.js`, `js/rear*.js`, `js/wheelend.js`, `js/cv.js`, `js/body.js` — деталі ·
 `js/info.js`, `js/help.js` — тексти · `js/app.js` — UI.
 Параметри в адресі для посилань: `#sel=f_arm`, `#ex=0.8`, `#fl=0.05&steer=0.5`, `#cm=real|accent|system`, `#sys=brake`.
+
+## Ліцензії
+Three.js та OrbitControls (MIT) лежать у `lib/` без змін. Решта коду — оригінальна, написана з нуля.
