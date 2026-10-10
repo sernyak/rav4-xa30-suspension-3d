@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RAV4 XA30 — ходова 3D</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:rgba(18,23,31,.88); --panel-solid:#12171f; --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
+  --text:#e6edf3; --muted:#8b98a8; --accent:#4da3ff; --accent2:#7cc4ff; --good:#3ddc84; --warn:#ffb454; --bad:#ff6b6b;
+  --susp:#3b8cff; --brake:#ff4d4d; --steer:#3ddc84; --drive:#ffa53b; --wheel:#a0a8b4; --body:#7a8696;
+  --lw:340px; --rw:372px; --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+.hide{display:none!important}
+
+/* ---------- верхня панель ---------- */
+#top{position:fixed;left:0;right:0;top:0;height:52px;display:flex;align-items:center;gap:14px;padding:0 14px 0 14px;z-index:20;
+  background:linear-gradient(180deg,rgba(13,17,23,.92),rgba(13,17,23,0));pointer-events:none}
+#top>*{pointer-events:auto}
+#brand{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+#brand b{font-size:15px;letter-spacing:.2px;white-space:nowrap}
+#brand small{font-size:inherit;font-weight:700}
+#brand span{color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#views{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;margin-right:calc(var(--rw) + 6px)}
+#cmq{margin-left:6px;white-space:nowrap}
+#cmq.on{border-color:#ffc42e;color:#ffd978}
+#cmq.on::first-letter{color:#ff7a1a}
+.pill{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--text);backdrop-filter:blur(8px);transition:.15s}
+.pill:hover{border-color:var(--accent);color:#fff}
+.pill.on{background:var(--accent);border-color:var(--accent);color:#04101f;font-weight:600}
+#menu-l,#menu-r{display:none}
+
+/* ---------- панелі ---------- */
+.panel{position:fixed;top:56px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(14px);z-index:15;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#left{left:12px;width:var(--lw)}
+#right{right:12px;width:var(--rw)}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tabs button{flex:1;background:none;border:0;padding:11px 4px;color:var(--muted);font-size:12.5px;border-bottom:2px solid transparent}
+.tabs button.on{color:#fff;border-bottom-color:var(--accent)}
+.tabs button:hover{color:#fff}
+.tab{display:none;flex:1;min-height:0;overflow:auto;padding:12px 14px 18px}
+.tab.on{display:block}
+.tab::-webkit-scrollbar,.scroll::-webkit-scrollbar{width:8px}
+.tab::-webkit-scrollbar-thumb,.scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:8px}
+
+h3{margin:16px 0 8px;font-size:11.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);font-weight:600}
+h3:first-child{margin-top:2px}
+
+/* ---------- дерево ---------- */
+#search{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text);font:inherit;outline:none;margin-bottom:8px}
+#search:focus{border-color:var(--accent)}
+.sys{margin:10px 0 2px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:12.5px}
+.sys i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.sys .eye{margin-left:auto}
+.grp{margin:6px 0 1px 18px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.row{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:7px;cursor:pointer;margin-left:10px}
+.row:hover{background:rgba(255,255,255,.07)}
+.row.sel{background:rgba(77,163,255,.18);outline:1px solid rgba(77,163,255,.5)}
+.row .nm{flex:1;min-width:0;line-height:1.25}
+.row .cnt{font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.06);border-radius:5px;padding:0 5px}
+.eye{width:22px;height:22px;border-radius:6px;border:0;background:none;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.eye:hover{background:rgba(255,255,255,.1);color:#fff}
+.eye svg{width:15px;height:15px}
+.eye.off{color:#566}
+.row.off .nm{opacity:.38;text-decoration:line-through}
+
+/* ---------- контроли ---------- */
+.ctl{margin:8px 0 12px}
+.ctl label{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:3px}
+.ctl label b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0;height:22px}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.btn{background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px}
+.btn:hover{border-color:var(--accent)}
+.btn.on{background:var(--accent);color:#04101f;border-color:var(--accent);font-weight:600}
+.sw{display:flex;align-items:center;gap:8px;margin:7px 0;cursor:pointer;user-select:none}
+.sw input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+table.ang{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+table.ang th{color:var(--muted);font-weight:500;text-align:right;padding:3px 4px;border-bottom:1px solid var(--line)}
+table.ang th:first-child,table.ang td:first-child{text-align:left}
+table.ang td{text-align:right;padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04)}
+.hint{color:var(--muted);font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px}
+.legend span,.legend .lg{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.legend .lg{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:4px 9px;text-align:left}
+.legend .lg:hover{border-color:var(--accent);background:rgba(255,255,255,.1)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:none;margin-left:-2px}
+
+/* ---------- інфо-панель ---------- */
+#info{padding:14px 16px 18px;overflow:auto;flex:1}
+#info .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line2);color:var(--muted)}
+#info .badge i{width:8px;height:8px;border-radius:50%;display:inline-block}
+#info h2{margin:8px 0 2px;font-size:18px;line-height:1.2}
+#info .en{color:var(--muted);font-size:12px;margin-bottom:8px}
+#info h4{margin:14px 0 4px;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--accent2);font-weight:600}
+#info p{margin:0 0 4px;color:#d4dce6}
+#info ul{list-style:none;margin:0;padding:0}
+#info li{display:flex;gap:8px;align-items:flex-start;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.chip{background:rgba(77,163,255,.14);border:1px solid rgba(77,163,255,.35);color:#cfe6ff;border-radius:7px;padding:2px 8px;font-size:12px;text-align:left;flex:none;max-width:56%}
+.chip:hover{background:rgba(77,163,255,.3);color:#fff}
+li .note{color:#b6c2d0;font-size:12.5px;padding-top:2px}
+.inst{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
+.empty{color:var(--muted);padding:6px 2px}
+.empty b{color:var(--text)}
+.kbd{display:inline-block;border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:11px;color:var(--muted)}
+.wear{background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.25);border-radius:9px;padding:8px 10px;margin-top:4px;color:#f1dcc2}
+.sym{display:block;width:100%;text-align:left;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin:6px 0}
+.sym:hover{border-color:var(--accent)}
+.sym b{display:block;margin-bottom:2px}
+.sym span{color:var(--muted);font-size:12px}
+details{border:1px solid var(--line);border-radius:9px;margin:8px 0;padding:0 10px;background:rgba(255,255,255,.03)}
+summary{cursor:pointer;padding:8px 0;font-weight:600}
+details p{color:#c9d3df;margin:0 0 8px}
+
+#tip{position:fixed;pointer-events:none;background:rgba(10,14,20,.95);border:1px solid var(--line2);border-radius:8px;padding:5px 9px;font-size:12px;z-index:40;white-space:nowrap;transform:translate(14px,14px);display:none}
+#bottom{position:fixed;left:calc(var(--lw) + 24px);right:calc(var(--rw) + 24px);bottom:14px;display:flex;justify-content:center;pointer-events:none;z-index:12}
+#bottom span{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px;color:var(--muted);font-size:12px;backdrop-filter:blur(8px);text-align:center}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg);z-index:100;transition:opacity .5s}
+#loading .bar{width:220px;height:3px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+#loading .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:ld 1.1s infinite ease-in-out}
+@keyframes ld{0%{margin-left:-40%}100%{margin-left:100%}}
+
+@media (max-width:1100px){
+  :root{--lw:300px;--rw:320px}
+  #views{display:none}
+}
+@media (max-width:860px){
+  #menu-l,#menu-r{display:inline-flex}
+  #left{transform:translateX(-110%);transition:.25s;top:52px;bottom:auto;height:62vh;width:min(92vw,360px)}
+  #right{top:auto;bottom:0;left:0;right:0;width:auto;height:44vh;border-radius:16px 16px 0 0;transform:translateY(110%);transition:.25s}
+  body.lopen #left{transform:none}
+  body.ropen #right{transform:none}
+  #bottom{display:none}
+  #brand span,#brand small{display:none}
+  #brand b{font-size:14px}
+  #top{gap:8px}
+  .mbtn{margin-left:auto}
+}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0"></canvas>
+
+<div id="top">
+  <div id="brand"><b>Toyota RAV4 XA30<small> · ходова частина</small></b><span>інтерактивна 3D-модель 2011 р. · підвіска, гальма, кермо, привід</span></div>
+  <button class="pill" id="cmq" title="Увімкнути / вимкнути кольорові акценти">● Колір</button>
+  <div id="views"></div>
+  <button class="pill mbtn" id="menu-l">☰ Деталі</button>
+  <button class="pill" id="menu-r">ⓘ Опис</button>
+</div>
+
+<aside class="panel" id="left">
+  <div class="tabs" id="tabs">
+    <button data-tab="parts" class="on">Деталі</button>
+    <button data-tab="motion">Рух</button>
+    <button data-tab="view">Вигляд</button>
+    <button data-tab="help">Довідка</button>
+  </div>
+
+  <div class="tab on" id="tab-parts">
+    <input id="search" placeholder="Пошук деталі: «важіль», «ШРУС»…" autocomplete="off">
+    <div id="tree"></div>
+  </div>
+
+  <div class="tab" id="tab-motion">
+    <h3>Хід підвіски (мм, + стиснення)</h3>
+    <div class="ctl"><label>Переднє ліве <b id="v-fl">0</b></label><input type="range" id="s-fl" min="-100" max="100" step="1" value="0"></div>
+    <div class="ctl"><label>Переднє праве <b id="v-fr">0</b></label><input type="range" id="s-fr" min="-100" max="100" step="1" value="0"></div>
+    <div class="ctl"><label>Заднє ліве <b id="v-rl">0</b></label><input type="range" id="s-rl" min="-100" max="100" step="1" value="0"></div>
+    <div class="ctl"><label>Заднє праве <b id="v-rr">0</b></label><input type="range" id="s-rr" min="-100" max="100" step="1" value="0"></div>
+    <div class="btnrow" id="presets"></div>
+    <h3>Кермо</h3>
+    <div class="ctl"><label>Поворот коліс <b id="v-st">0°</b></label><input type="range" id="s-st" min="-100" max="100" step="1" value="0"></div>
+    <h3>Обертання і анімація</h3>
+    <label class="sw"><input type="checkbox" id="c-spin"> Обертати колеса (диск, ступиця, ШРУС)</label>
+    <label class="sw"><input type="checkbox" id="c-auto"> Автоматичний хід підвіски (їзда по нерівностях)</label>
+    <h3>Кути коліс при поточному положенні (зміна)</h3>
+    <table class="ang" id="angtab"></table>
+    <p class="hint">Розвал (camber) і сходження/поворот (toe) — це не «налаштовані числа», а реальний результат геометрії важелів: модель сама розв’язує положення кулака для кожного положення колеса.</p>
+  </div>
+
+  <div class="tab" id="tab-view">
+    <h3>Розбирання (explode)</h3>
+    <div class="ctl"><label>Розсунути деталі <b id="v-ex">0%</b></label><input type="range" id="s-ex" min="0" max="100" step="1" value="0"></div>
+    <h3>Що показувати</h3>
+    <div class="btnrow" id="sysfilter"></div>
+    <div class="btnrow" id="axfilter"></div>
+    <label class="sw"><input type="checkbox" id="c-wheels" checked> Колеса і шини</label>
+    <label class="sw"><input type="checkbox" id="c-body" checked> Кузов, двигун (напівпрозорий контекст)</label>
+    <label class="sw"><input type="checkbox" id="c-outline" checked> Контур кузова</label>
+    <label class="sw"><input type="checkbox" id="c-grid" checked> Підлога/сітка</label>
+    <h3>Виділення</h3>
+    <label class="sw"><input type="checkbox" id="c-focus" checked> Приглушувати інші деталі, коли вибрано одну</label>
+    <h3>Кольори</h3>
+    <label class="sw"><input type="checkbox" id="c-color" checked> Кольорові акценти (вимкнено — природний вигляд)</label>
+    <div class="btnrow"><button class="btn" data-cm="real">Реалістичні</button><button class="btn on" data-cm="accent">Акценти</button><button class="btn" data-cm="system">За системами</button></div>
+    <p class="hint" id="cm-hint"></p>
+    <div class="legend" id="legend"></div>
+    <h3>Якість</h3>
+    <label class="sw"><input type="checkbox" id="c-hq" checked> Висока чіткість (Retina) — вимкніть, якщо гальмує</label>
+  </div>
+
+  <div class="tab" id="tab-help">
+    <h3>Як користуватись</h3>
+    <p class="hint"><span class="kbd">ЛКМ</span> тягнути — обертати · <span class="kbd">ПКМ</span> / <span class="kbd">Shift+ЛКМ</span> — зсув · <span class="kbd">колесо</span> — масштаб · клік по деталі — опис · подвійний клік — наблизити · <span class="kbd">Esc</span> — зняти вибір.</p>
+    <p class="hint">У вкладці «Рух» проганяйте колесо вгору-вниз, повертайте кермо — і дивіться, які деталі як працюють. У «Вигляд» розсувайте деталі (explode) й залишайте лише потрібну систему.</p>
+    <h3>З чого почати: симптом → деталі</h3>
+    <div id="symptoms"></div>
+    <h3>Короткий словник</h3>
+    <div id="glossary"></div>
+    <h3>Про модель</h3>
+    <p class="hint">Це навчальна схематична модель: компоновка (передня McPherson, задня — подвійні важелі + поздовжній, окремі пружина й амортизатор, повний привід) відповідає Toyota RAV4 XA30, але форми та розміри вузлів узагальнені й намальовані з нуля, а не зняті з креслень. Для точних розмірів, моментів затягування і каталожних номерів користуйтесь сервісним мануалом та Toyota EPC.</p>
+  </div>
+</aside>
+
+<aside class="panel" id="right">
+  <div id="info"></div>
+</aside>
+
+<div id="bottom"><span>ЛКМ — обертати · ПКМ — зсув · колесо — масштаб · клік — опис деталі · подвійний клік — наблизити</span></div>
+<div id="tip"></div>
+<div id="loading"><b>Збираю ходову RAV4…</b><div class="bar"><i></i></div></div>
+
+<script>window.addEventListener('error',function(e){var l=document.getElementById('loading');if(l){l.innerHTML='<b style="color:#ff6b6b">Помилка: '+(e.message||'')+'</b>';}});</script>
+<script src="lib/three.min.js"></script>
+<script src="lib/OrbitControls.js"></script>
+<script src="js/spec.js"></script>
+<script src="js/kin.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/mats.js"></script>
+<script src="js/colors.js"></script>
+<script src="js/info.js"></script>
+<script src="js/rig.js"></script>
+<script src="js/wheelend.js"></script>
+<script src="js/cv.js"></script>
+<script src="js/front.js"></script>
+<script src="js/front_central.js"></script>
+<script src="js/rear.js"></script>
+<script src="js/rear_central.js"></script>
+<script src="js/body.js"></script>
+<script src="js/build.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/help.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
